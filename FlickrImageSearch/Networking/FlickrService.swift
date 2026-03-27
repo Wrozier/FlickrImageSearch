@@ -4,7 +4,6 @@
 //
 //  Created by William Rozier on 3/27/26.
 //
-
 import Foundation
 import Combine
 
@@ -16,8 +15,9 @@ class FlickrService: ObservableObject {
     
     private let baseURL = "https://api.flickr.com/services/feeds/photos_public.gne"
     
+    // Removed debounce completely
     func search(tags: String) async {
-        guard !tags.trimmingCharacters(in: .whitespaces).isEmpty else {
+        guard !tags.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             photos = []
             return
         }
@@ -41,18 +41,32 @@ class FlickrService: ObservableObject {
         }
         
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.data(from: url)
             
-            // The feed sometimes has minor quirks, but with nojsoncallback=1 it should be clean
+            if let httpResponse = response as? HTTPURLResponse {
+                print("✅ HTTP Status: \(httpResponse.statusCode)")
+            }
+            
+            let preview = String(data: data.prefix(800), encoding: .utf8) ?? "Invalid data"
+            print("Response preview (first 800 chars):\n\(preview)\n...")
+            
             let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            
             let feed = try decoder.decode(FlickrFeed.self, from: data)
             
             self.photos = feed.items
+            print("✅ SUCCESS: Loaded \(feed.items.count) photos for tags: \(tags)")
+            
         } catch {
-            self.errorMessage = "Failed to load images: \(error.localizedDescription)"
-            print("Decoding error: \(error)")
+            print("❌ ERROR: \(error)")
+            
+            if let decodingError = error as? DecodingError {
+                print("🔍 Detailed Decoding Error: \(decodingError)")
+            }
+            
+            errorMessage = "Failed to load images. Please try different tags."
+            photos = []
         }
-        
-        isLoading = false
     }
 }

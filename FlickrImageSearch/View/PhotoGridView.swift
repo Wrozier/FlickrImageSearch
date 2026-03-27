@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+
 struct PhotoGridView: View {
     @StateObject private var service = FlickrService()
     @State private var searchText = ""
@@ -22,9 +23,17 @@ struct PhotoGridView: View {
                     ProgressView("Searching Flickr...")
                         .padding()
                 } else if let error = service.errorMessage {
-                    ContentUnavailableView("Error", systemImage: "exclamationmark.triangle", description: Text(error))
+                    ContentUnavailableView("Error",
+                                           systemImage: "exclamationmark.triangle",
+                                           description: Text(error))
                 } else if service.photos.isEmpty && !searchText.isEmpty {
-                    ContentUnavailableView("No Results", systemImage: "photo.on.rectangle.angled", description: Text("Try different tags"))
+                    ContentUnavailableView("No Results",
+                                           systemImage: "photo.on.rectangle.angled",
+                                           description: Text("No images found for \"\(searchText)\""))
+                } else if service.photos.isEmpty {
+                    ContentUnavailableView("Flickr Search",
+                                           systemImage: "magnifyingglass",
+                                           description: Text("Type tags like porcupine, cat, forest..."))
                 } else {
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 12) {
@@ -32,7 +41,7 @@ struct PhotoGridView: View {
                                 NavigationLink(destination: PhotoDetailView(photo: photo)) {
                                     PhotoThumbnailView(photo: photo)
                                 }
-                                .buttonStyle(PlainButtonStyle())
+                                .buttonStyle(.plain)
                             }
                         }
                         .padding()
@@ -40,7 +49,11 @@ struct PhotoGridView: View {
                 }
             }
             .navigationTitle("Flickr Search")
-            .searchable(text: $searchText, prompt: "Search tags (e.g. porcupine, forest, bird)")
+            .searchable(
+                text: $searchText,
+                prompt: "Search tags (e.g. porcupine, forest, bird)"
+            )
+           
             .onChange(of: searchText) { _, newValue in
                 Task {
                     await service.search(tags: newValue)
